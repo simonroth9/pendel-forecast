@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta http-equiv="refresh" content="600">
+<title>Pendel-Forecast</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#16202c; --muted:#5c6b7a;
+    --line:#e2e8f0; --grid:#7c8aa0; --accent:#0f766e; --accent-soft:#ccdedb;
+    --alt:#2563eb; --alt-soft:#e2ebfd;
+    --good:#15803d; --good-soft:#d9ead9;
+    --warn:#b45309; --warn-soft:#fdeccd; --bad:#b91c1c;
+    --shadow:0 1px 2px rgba(16,32,44,.06),0 6px 20px rgba(16,32,44,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme=light]){
+      --bg:#0e141b; --card:#161f29; --ink:#e7edf4; --muted:#9aa9b8;
+      --line:#26323f; --grid:#8496a8; --accent:#2dd4bf; --accent-soft:#1f3b39;
+      --alt:#7ab0ff; --alt-soft:#1c2c46;
+      --good:#4ade80; --good-soft:#183a26;
+      --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 22px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1040px;margin:0 auto;padding:22px 18px 60px}
+  header h1{margin:0 0 4px;font-size:22px;letter-spacing:-.01em}
+  .route{color:var(--muted);font-size:14px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+  .badge{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--card);
+    border:1px solid var(--line);color:var(--muted)}
+  .badge.sample{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+  @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .badge.sample{
+    background:#3a2f12;color:#fbbf24;border-color:#7a5f1a}}
+  .badge.live{background:var(--good-soft);color:var(--good);border-color:transparent}
+
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    margin:30px 0 12px;font-weight:600}
+
+  .live{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:560px){.live{grid-template-columns:1fr}}
+  .lcard{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;box-shadow:var(--shadow)}
+  .lhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .ldir{font-size:13px;color:var(--muted);font-weight:600}
+  .pill{font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;
+    text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+  .pill.good{background:var(--good-soft);color:var(--good)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .pill.bad{background:var(--bad);color:#fff}
+  .lbig{font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1.05;
+    margin:8px 0 2px;font-variant-numeric:tabular-nums}
+  .lbig span{font-size:15px;font-weight:600;color:var(--muted);margin-left:5px}
+  .lsub{font-size:12px;color:var(--muted);margin-bottom:11px}
+  .lroutes{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:10px}
+  .lr{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+  .lr .lt{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+  .lr.win{font-weight:700;color:var(--accent)}
+  .lr.win .lt{color:var(--accent)}
+  .lnote{font-size:11px;color:var(--muted);margin-top:8px}
+
+  .quality{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media (max-width:620px){.quality{grid-template-columns:repeat(2,1fr)}}
+  .qtile{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;box-shadow:var(--shadow)}
+  .qtile .qv{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .qtile .ql{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .qhead{display:flex;align-items:center;gap:10px;margin:30px 0 12px}
+  .qhead h2{margin:0}
+  .qnote{font-size:12px;color:var(--muted);margin-top:11px;line-height:1.55}
+
+  .entrybox{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px 18px;box-shadow:var(--shadow)}
+  .erow2{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px}
+  .rad{font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .efields{display:flex;flex-wrap:wrap;gap:14px}
+  .efields label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:4px}
+  .efields input{font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:8px;background:var(--bg);color:var(--ink);min-width:130px}
+  .eactions{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .ebtn{font:inherit;font-size:14px;font-weight:600;padding:8px 16px;border:none;border-radius:8px;
+    background:var(--accent);color:#fff;cursor:pointer}
+  .ebtn:hover{filter:brightness(1.05)}
+  .eerr{font-size:12px;color:var(--bad)}
+  .ehint{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5}
+  .elist{display:flex;flex-direction:column;gap:6px;margin-top:14px;
+    border-top:1px dashed var(--line);padding-top:12px}
+  .erow{display:flex;align-items:center;gap:10px;font-size:13px}
+  .erow .ew{color:var(--muted);min-width:96px}
+  .erow .ed{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+    padding:1px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent)}
+  .erow .ed.eh{background:var(--alt-soft);color:var(--alt)}
+  .erow .et{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+  .edel{border:none;background:transparent;color:var(--muted);font-size:18px;line-height:1;
+    cursor:pointer;padding:0 4px}
+  .edel:hover{color:var(--bad)}
+
+  .calib{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px 18px;box-shadow:var(--shadow)}
+  .crow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 0;
+    border-top:1px dashed var(--line)}
+  .crow:first-child{border-top:none}
+  .clbl{font-size:13px;font-weight:600;min-width:150px}
+  .crow .cn{font-size:12px;color:var(--muted);margin-left:auto}
+
+  .week{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  @media (max-width:760px){.week{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:440px){.week{grid-template-columns:1fr}}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px 12px 14px;box-shadow:var(--shadow);cursor:pointer;transition:.15s;
+    border-top:3px solid var(--accent)}
+  .day:hover{transform:translateY(-1px)}
+  .day.active{outline:2px solid var(--accent);outline-offset:1px}
+  .day .name{font-weight:600;margin-bottom:8px}
+  .leg{padding:8px 0;border-top:1px dashed var(--line)}
+  .leg:first-of-type{border-top:none}
+  .leg .dir{font-size:11px;color:var(--muted);margin-bottom:5px}
+  .opt{display:flex;align-items:baseline;gap:7px;margin:4px 0}
+  .k{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+    padding:2px 6px;border-radius:5px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+  .k.spaet{background:var(--alt-soft);color:var(--alt)}
+  .k.avoid{background:var(--warn-soft);color:var(--warn)}
+  .opt .rng{font-size:16px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .opt .tt{font-size:11px;color:var(--muted);margin-left:auto;text-align:right;white-space:nowrap}
+  .na{color:var(--muted);font-size:12px;padding:6px 0}
+
+  .detail{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:18px;box-shadow:var(--shadow);margin-top:12px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .tab{border:1px solid var(--line);background:transparent;color:var(--muted);
+    padding:6px 14px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+  @media (max-width:720px){.charts{grid-template-columns:1fr}}
+  .chart h3{margin:0 0 2px;font-size:15px}
+  .chart .sub{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .olist{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}
+  .orow{display:flex;align-items:baseline;gap:9px;padding:9px 11px;border-radius:10px;
+    background:var(--bg);border:1px solid var(--line)}
+  .orow .rng{font-size:17px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .orow .meta{font-size:12px;color:var(--muted)}
+  .orow .right{margin-left:auto;text-align:right}
+  .orow .tt{font-size:14px;font-weight:600}
+  .orow .later{font-size:11px;color:var(--alt);font-weight:600}
+  .orow.av{background:var(--warn-soft);border-color:transparent}
+  .orow.av .tt{color:var(--warn)}
+  svg{width:100%;height:auto;display:block;overflow:visible}
+  .foot{color:var(--muted);font-size:12px;margin-top:26px;line-height:1.6}
+  .foot code{background:var(--card);border:1px solid var(--line);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pendel-Forecast</h1>
+    <div class="route" id="route"></div>
+    <div class="badges" id="badges"></div>
+  </header>
+
+  <div id="liveWrap"></div>
+
+  <h2>Empfehlung &amp; Fahrzeit je Wochentag</h2>
+  <div class="detail">
+    <div class="tabs" id="tabs"></div>
+    <div class="charts">
+      <div class="chart">
+        <h3 id="mTitle"></h3>
+        <div class="sub" id="mSub"></div>
+        <div id="mChart"></div>
+      </div>
+      <div class="chart">
+        <h3 id="eTitle"></h3>
+        <div class="sub" id="eSub"></div>
+        <div id="eChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Eigene Fahrt erfassen</h2>
+  <div class="entrybox">
+    <div class="eform">
+      <div class="erow2">
+        <label class="rad"><input type="radio" name="mdir" value="to_work" checked> Hinfahrt (Brühl → St. Augustin)</label>
+        <label class="rad"><input type="radio" name="mdir" value="to_home"> Rückfahrt (St. Augustin → Brühl)</label>
+      </div>
+      <div class="efields">
+        <label>Ankunftszeit<input type="time" id="mArr"></label>
+        <label>Fahrzeit (Min)<input type="number" id="mTravel" min="1" step="1" placeholder="z. B. 48"></label>
+      </div>
+      <div class="eactions">
+        <button class="ebtn" type="button" onclick="addManualEntry()">Fahrt hinzufügen</button>
+        <span class="eerr" id="mErr"></span>
+      </div>
+      <div class="ehint"><b>Datum = heute</b> (automatisch aus der Geräte-Uhr). Die <b>Abfahrtszeit</b> wird aus
+        Ankunft − Fahrzeit berechnet und als Punkt (●) ins Diagramm des heutigen Wochentags geplottet.
+        Die Einträge werden nur in deinem Browser gespeichert.</div>
+    </div>
+    <div class="elist" id="entryList"></div>
+  </div>
+
+  <div id="calibWrap"></div>
+
+  <div id="qualityWrap"></div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const FORECAST = {"generated_at": "2026-09-25T18:59:15Z", "timezone": "Europe/Berlin", "is_sample": false, "data_points": 1407, "date_range": {"from": "2026-09-02", "to": "2026-09-25"}, "route": {"origin": "Brühl", "destination": "Hochschule Bonn-Rhein-Sieg, Sankt Augustin"}, "tolerance": 0.1, "quality": {"measurements": 1407, "measure_days": 18, "span_days": 24, "first_day": "2026-09-02", "last_day": "2026-09-25", "samples_per_slot": 6, "coverage_pct": 104, "accuracy_min": 4, "level": "belastbar", "level_label": "Belastbare Prognose"}, "live": {"directions": {"to_work": {"free_flow_min": 30, "routes": [{"name": "über A555", "travel_min": 35, "delay_min": 5, "length_km": 40.2, "free_min": 30, "roads": "über A555 · A4 · A559", "fastest": true}, {"name": "über Eifeltor", "travel_min": 43, "delay_min": 6, "length_km": 41.7, "free_min": 37, "roads": "über A4 · A559 · A560", "fastest": false}, {"name": "über Militärring", "travel_min": 49, "delay_min": 8, "length_km": 45.9, "free_min": 41, "roads": "über A555 · A4 · A559", "fastest": false}], "label": "Brühl → Sankt Augustin", "updated_utc": "2026-09-25T09:59:13Z", "updated_local": "2026-09-25T11:59:13+0200"}, "to_home": {"free_flow_min": 32, "routes": [{"name": "über A59/A559", "travel_min": 35, "delay_min": 3, "length_km": 43.4, "free_min": 32, "roads": "über A3 · A4 · A555", "fastest": true}, {"name": "über A3", "travel_min": 42, "delay_min": 3, "length_km": 47.3, "free_min": 39, "roads": "über A3 · A4 · A555", "fastest": false}, {"name": "über A59/A559/L124", "travel_min": 43, "delay_min": 3, "length_km": 48.2, "free_min": 40, "roads": "über A3 · A4 · A559", "fastest": false}], "label": "Sankt Augustin → Brühl", "updated_utc": "2026-09-25T18:00:46Z", "updated_local": "2026-09-25T20:00:46+0200"}}, "updated_utc": "2026-09-25T18:00:46Z"}, "average": {"label": "Durchschnitt (Mo–Fr)", "to_work": {"label": "Brühl → Sankt Augustin", "window": {"start": "06:00", "end": "12:00", "earliest": "06:00", "target_arrival": null}, "free_flow_min": 30.0, "curve": [{"mins_of_day": 360, "t": "06:00", "travel_min": 35.8, "delay_min": 1.7, "n": 5}, {"mins_of_day": 375, "t": "06:15", "travel_min": 38.4, "delay_min": 4.1, "n": 5}, {"mins_of_day": 390, "t": "06:30", "travel_min": 40.8, "delay_min": 5.9, "n": 5}, {"mins_of_day": 405, "t": "06:45", "travel_min": 43.3, "delay_min": 6.7, "n": 5}, {"mins_of_day": 420, "t": "07:00", "travel_min": 44.0, "delay_min": 8.0, "n": 5}, {"mins_of_day": 435, "t": "07:15", "travel_min": 46.9, "delay_min": 10.9, "n": 5}, {"mins_of_day": 450, "t": "07:30", "travel_min": 48.7, "delay_min": 11.3, "n": 5}, {"mins_of_day": 465, "t": "07:45", "travel_min": 49.6, "delay_min": 12.0, "n": 5}, {"mins_of_day": 480, "t": "08:00", "travel_min": 48.1, "delay_min": 11.4, "n": 5}, {"mins_of_day": 495, "t": "08:15", "travel_min": 47.8, "delay_min": 11.5, "n": 5}, {"mins_of_day": 510, "t": "08:30", "travel_min": 47.0, "delay_min": 10.4, "n": 5}, {"mins_of_day": 525, "t": "08:45", "travel_min": 43.4, "delay_min": 8.5, "n": 5}, {"mins_of_day": 540, "t": "09:00", "travel_min": 41.5, "delay_min": 6.9, "n": 5}, {"mins_of_day": 555, "t": "09:15", "travel_min": 39.9, "delay_min": 5.3, "n": 5}, {"mins_of_day": 570, "t": "09:30", "travel_min": 39.1, "delay_min": 4.8, "n": 5}, {"mins_of_day": 585, "t": "09:45", "travel_min": 38.3, "delay_min": 3.8, "n": 5}, {"mins_of_day": 600, "t": "10:00", "travel_min": 37.3, "delay_min": 3.3, "n": 5}, {"mins_of_day": 615, "t": "10:15", "travel_min": 37.3, "delay_min": 3.1, "n": 5}, {"mins_of_day": 630, "t": "10:30", "travel_min": 37.3, "delay_min": 3.3, "n": 5}, {"mins_of_day": 645, "t": "10:45", "travel_min": 37.4, "delay_min": 3.4, "n": 5}, {"mins_of_day": 660, "t": "11:00", "travel_min": 37.6, "delay_min": 3.5, "n": 5}, {"mins_of_day": 675, "t": "11:15", "travel_min": 37.6, "delay_min": 3.5, "n": 5}, {"mins_of_day": 690, "t": "11:30", "travel_min": 38.4, "delay_min": 3.9, "n": 5}, {"mins_of_day": 705, "t": "11:45", "travel_min": 38.9, "delay_min": 4.5, "n": 5}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 36.4, "delay_min": 0.3, "n": 1}, {"mins_of_day": 1245, "t": "20:45", "travel_min": 36.6, "delay_min": 0.5, "n": 1}, {"mins_of_day": 1275, "t": "21:15", "travel_min": 35.9, "delay_min": 0.0, "n": 1}, {"mins_of_day": 1320, "t": "22:00", "travel_min": 36.5, "delay_min": 0.4, "n": 1}, {"mins_of_day": 1335, "t": "22:15", "travel_min": 36.2, "delay_min": 0.2, "n": 1}, {"mins_of_day": 1350, "t": "22:30", "travel_min": 31.1, "delay_min": 1.1, "n": 1}], "windows": [{"from": "06:00", "to": "06:15", "from_min": 360, "to_min": 375, "travel_min": 36, "delay_min": 2, "arrival": "06:36", "later_by": null, "kind": "früh"}, {"from": "09:30", "to": "11:45", "from_min": 570, "to_min": 705, "travel_min": 37, "delay_min": 3, "arrival": "10:07", "later_by": "3:30 h", "kind": "spät"}], "avoid": {"from": "06:45", "to": "08:45", "from_min": 405, "to_min": 525, "travel_min": 50, "delay_min": 12}}, "to_home": {"label": "Sankt Augustin → Brühl", "window": {"start": "14:00", "end": "20:00", "earliest": "14:00", "target_arrival": null}, "free_flow_min": 31.0, "curve": [{"mins_of_day": 405, "t": "06:45", "travel_min": 46.0, "delay_min": 9.2, "n": 1}, {"mins_of_day": 420, "t": "07:00", "travel_min": 48.0, "delay_min": 10.4, "n": 1}, {"mins_of_day": 435, "t": "07:15", "travel_min": 52.3, "delay_min": 14.6, "n": 1}, {"mins_of_day": 840, "t": "14:00", "travel_min": 46.1, "delay_min": 9.3, "n": 5}, {"mins_of_day": 855, "t": "14:15", "travel_min": 45.9, "delay_min": 9.7, "n": 5}, {"mins_of_day": 870, "t": "14:30", "travel_min": 46.8, "delay_min": 10.1, "n": 5}, {"mins_of_day": 885, "t": "14:45", "travel_min": 48.2, "delay_min": 11.4, "n": 5}, {"mins_of_day": 900, "t": "15:00", "travel_min": 48.6, "delay_min": 11.9, "n": 5}, {"mins_of_day": 915, "t": "15:15", "travel_min": 51.3, "delay_min": 13.5, "n": 5}, {"mins_of_day": 930, "t": "15:30", "travel_min": 50.9, "delay_min": 13.8, "n": 5}, {"mins_of_day": 945, "t": "15:45", "travel_min": 51.8, "delay_min": 14.8, "n": 5}, {"mins_of_day": 960, "t": "16:00", "travel_min": 51.9, "delay_min": 14.4, "n": 5}, {"mins_of_day": 975, "t": "16:15", "travel_min": 52.3, "delay_min": 14.6, "n": 5}, {"mins_of_day": 990, "t": "16:30", "travel_min": 51.6, "delay_min": 14.2, "n": 5}, {"mins_of_day": 1005, "t": "16:45", "travel_min": 50.9, "delay_min": 14.2, "n": 5}, {"mins_of_day": 1020, "t": "17:00", "travel_min": 49.8, "delay_min": 13.8, "n": 5}, {"mins_of_day": 1035, "t": "17:15", "travel_min": 49.6, "delay_min": 12.9, "n": 5}, {"mins_of_day": 1050, "t": "17:30", "travel_min": 48.2, "delay_min": 12.5, "n": 5}, {"mins_of_day": 1065, "t": "17:45", "travel_min": 44.3, "delay_min": 9.3, "n": 5}, {"mins_of_day": 1080, "t": "18:00", "travel_min": 43.3, "delay_min": 8.9, "n": 5}, {"mins_of_day": 1095, "t": "18:15", "travel_min": 41.7, "delay_min": 6.9, "n": 5}, {"mins_of_day": 1110, "t": "18:30", "travel_min": 39.7, "delay_min": 5.5, "n": 5}, {"mins_of_day": 1125, "t": "18:45", "travel_min": 37.7, "delay_min": 3.5, "n": 5}, {"mins_of_day": 1140, "t": "19:00", "travel_min": 37.5, "delay_min": 3.0, "n": 5}, {"mins_of_day": 1155, "t": "19:15", "travel_min": 36.4, "delay_min": 2.5, "n": 5}, {"mins_of_day": 1170, "t": "19:30", "travel_min": 35.9, "delay_min": 2.0, "n": 5}, {"mins_of_day": 1185, "t": "19:45", "travel_min": 35.8, "delay_min": 1.8, "n": 5}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 36.2, "delay_min": 1.7, "n": 5}, {"mins_of_day": 1245, "t": "20:45", "travel_min": 37.8, "delay_min": 1.1, "n": 1}, {"mins_of_day": 1275, "t": "21:15", "travel_min": 38.1, "delay_min": 1.4, "n": 1}, {"mins_of_day": 1320, "t": "22:00", "travel_min": 37.3, "delay_min": 0.6, "n": 1}, {"mins_of_day": 1335, "t": "22:15", "travel_min": 37.3, "delay_min": 0.5, "n": 1}, {"mins_of_day": 1350, "t": "22:30", "travel_min": 32.0, "delay_min": 0.7, "n": 1}], "windows": [{"from": "18:45", "to": "20:00", "from_min": 1125, "to_min": 1200, "travel_min": 36, "delay_min": 2, "arrival": "19:21", "later_by": null, "kind": "flex"}], "avoid": {"from": "14:00", "to": "18:00", "from_min": 840, "to_min": 1080, "travel_min": 52, "delay_min": 15}}}, "weekdays": {"0": {"label": "Montag", "to_work": {"label": "Brühl → Sankt Augustin", "window": {"start": "06:00", "end": "12:00", "earliest": "06:00", "target_arrival": null}, "free_flow_min": 33.0, "curve": [{"mins_of_day": 360, "t": "06:00", "travel_min": 37.7, "delay_min": 1.9, "n": 6}, {"mins_of_day": 375, "t": "06:15", "travel_min": 41.4, "delay_min": 5.2, "n": 3}, {"mins_of_day": 390, "t": "06:30", "travel_min": 43.3, "delay_min": 7.4, "n": 6}, {"mins_of_day": 405, "t": "06:45", "travel_min": 45.3, "delay_min": 6.9, "n": 6}, {"mins_of_day": 420, "t": "07:00", "travel_min": 45.9, "delay_min": 7.7, "n": 6}, {"mins_of_day": 435, "t": "07:15", "travel_min": 48.2, "delay_min": 9.7, "n": 3}, {"mins_of_day": 450, "t": "07:30", "travel_min": 49.3, "delay_min": 11.2, "n": 6}, {"mins_of_day": 465, "t": "07:45", "travel_min": 52.2, "delay_min": 13.6, "n": 6}, {"mins_of_day": 480, "t": "08:00", "travel_min": 48.5, "delay_min": 13.0, "n": 6}, {"mins_of_day": 495, "t": "08:15", "travel_min": 48.0, "delay_min": 11.3, "n": 3}, {"mins_of_day": 510, "t": "08:30", "travel_min": 47.3, "delay_min": 10.5, "n": 6}, {"mins_of_day": 525, "t": "08:45", "travel_min": 43.7, "delay_min": 8.0, "n": 6}, {"mins_of_day": 540, "t": "09:00", "travel_min": 42.0, "delay_min": 6.6, "n": 6}, {"mins_of_day": 555, "t": "09:15", "travel_min": 39.1, "delay_min": 6.4, "n": 3}, {"mins_of_day": 570, "t": "09:30", "travel_min": 39.3, "delay_min": 4.2, "n": 6}, {"mins_of_day": 585, "t": "09:45", "travel_min": 38.7, "delay_min": 2.8, "n": 6}, {"mins_of_day": 600, "t": "10:00", "travel_min": 38.7, "delay_min": 2.9, "n": 6}, {"mins_of_day": 615, "t": "10:15", "travel_min": 38.6, "delay_min": 2.5, "n": 3}, {"mins_of_day": 630, "t": "10:30", "travel_min": 38.9, "delay_min": 3.1, "n": 6}, {"mins_of_day": 645, "t": "10:45", "travel_min": 38.8, "delay_min": 3.0, "n": 6}, {"mins_of_day": 660, "t": "11:00", "travel_min": 39.0, "delay_min": 3.1, "n": 6}, {"mins_of_day": 675, "t": "11:15", "travel_min": 39.4, "delay_min": 3.6, "n": 3}, {"mins_of_day": 690, "t": "11:30", "travel_min": 40.0, "delay_min": 4.0, "n": 6}, {"mins_of_day": 705, "t": "11:45", "travel_min": 40.2, "delay_min": 4.1, "n": 6}], "windows": [{"from": "06:00", "to": "06:15", "from_min": 360, "to_min": 375, "travel_min": 38, "delay_min": 2, "arrival": "06:38", "later_by": null, "kind": "früh"}, {"from": "09:15", "to": "11:45", "from_min": 555, "to_min": 705, "travel_min": 39, "delay_min": 2, "arrival": "09:54", "later_by": "3:15 h", "kind": "spät"}], "avoid": {"from": "06:45", "to": "08:30", "from_min": 405, "to_min": 510, "travel_min": 52, "delay_min": 14}}, "to_home": {"label": "Sankt Augustin → Brühl", "window": {"start": "14:00", "end": "20:00", "earliest": "14:00", "target_arrival": null}, "free_flow_min": 36.0, "curve": [{"mins_of_day": 840, "t": "14:00", "travel_min": 45.8, "delay_min": 8.1, "n": 6}, {"mins_of_day": 855, "t": "14:15", "travel_min": 45.1, "delay_min": 8.8, "n": 3}, {"mins_of_day": 870, "t": "14:30", "travel_min": 45.6, "delay_min": 8.0, "n": 6}, {"mins_of_day": 885, "t": "14:45", "travel_min": 47.2, "delay_min": 9.9, "n": 6}, {"mins_of_day": 900, "t": "15:00", "travel_min": 47.3, "delay_min": 9.8, "n": 6}, {"mins_of_day": 915, "t": "15:15", "travel_min": 47.8, "delay_min": 10.1, "n": 3}, {"mins_of_day": 930, "t": "15:30", "travel_min": 49.0, "delay_min": 11.3, "n": 6}, {"mins_of_day": 945, "t": "15:45", "travel_min": 49.3, "delay_min": 12.0, "n": 6}, {"mins_of_day": 960, "t": "16:00", "travel_min": 49.7, "delay_min": 12.9, "n": 6}, {"mins_of_day": 975, "t": "16:15", "travel_min": 50.5, "delay_min": 12.8, "n": 3}, {"mins_of_day": 990, "t": "16:30", "travel_min": 49.0, "delay_min": 12.0, "n": 6}, {"mins_of_day": 1005, "t": "16:45", "travel_min": 51.2, "delay_min": 12.4, "n": 6}, {"mins_of_day": 1020, "t": "17:00", "travel_min": 49.2, "delay_min": 12.0, "n": 6}, {"mins_of_day": 1035, "t": "17:15", "travel_min": 48.9, "delay_min": 10.8, "n": 3}, {"mins_of_day": 1050, "t": "17:30", "travel_min": 45.8, "delay_min": 9.1, "n": 6}, {"mins_of_day": 1065, "t": "17:45", "travel_min": 43.6, "delay_min": 6.2, "n": 6}, {"mins_of_day": 1080, "t": "18:00", "travel_min": 42.8, "delay_min": 6.5, "n": 6}, {"mins_of_day": 1095, "t": "18:15", "travel_min": 41.9, "delay_min": 5.5, "n": 3}, {"mins_of_day": 1110, "t": "18:30", "travel_min": 40.1, "delay_min": 3.7, "n": 6}, {"mins_of_day": 1125, "t": "18:45", "travel_min": 39.2, "delay_min": 2.7, "n": 6}, {"mins_of_day": 1140, "t": "19:00", "travel_min": 39.0, "delay_min": 2.4, "n": 6}, {"mins_of_day": 1155, "t": "19:15", "travel_min": 38.4, "delay_min": 2.0, "n": 3}, {"mins_of_day": 1170, "t": "19:30", "travel_min": 38.2, "delay_min": 1.7, "n": 6}, {"mins_of_day": 1185, "t": "19:45", "travel_min": 37.9, "delay_min": 1.5, "n": 6}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 37.9, "delay_min": 1.5, "n": 3}], "windows": [{"from": "18:30", "to": "20:00", "from_min": 1110, "to_min": 1200, "travel_min": 38, "delay_min": 2, "arrival": "19:08", "later_by": null, "kind": "flex"}], "avoid": {"from": "14:30", "to": "17:30", "from_min": 870, "to_min": 1050, "travel_min": 51, "delay_min": 12}}}, "1": {"label": "Dienstag", "to_work": {"label": "Brühl → Sankt Augustin", "window": {"start": "06:00", "end": "12:00", "earliest": "06:00", "target_arrival": null}, "free_flow_min": 35.0, "curve": [{"mins_of_day": 360, "t": "06:00", "travel_min": 37.5, "delay_min": 2.1, "n": 6}, {"mins_of_day": 375, "t": "06:15", "travel_min": 41.2, "delay_min": 5.5, "n": 3}, {"mins_of_day": 390, "t": "06:30", "travel_min": 43.2, "delay_min": 7.0, "n": 6}, {"mins_of_day": 405, "t": "06:45", "travel_min": 46.1, "delay_min": 8.7, "n": 6}, {"mins_of_day": 420, "t": "07:00", "travel_min": 46.8, "delay_min": 10.2, "n": 6}, {"mins_of_day": 435, "t": "07:15", "travel_min": 49.5, "delay_min": 14.7, "n": 3}, {"mins_of_day": 450, "t": "07:30", "travel_min": 54.3, "delay_min": 14.3, "n": 6}, {"mins_of_day": 465, "t": "07:45", "travel_min": 55.5, "delay_min": 15.3, "n": 6}, {"mins_of_day": 480, "t": "08:00", "travel_min": 54.1, "delay_min": 15.4, "n": 6}, {"mins_of_day": 495, "t": "08:15", "travel_min": 53.5, "delay_min": 15.3, "n": 3}, {"mins_of_day": 510, "t": "08:30", "travel_min": 51.7, "delay_min": 13.5, "n": 6}, {"mins_of_day": 525, "t": "08:45", "travel_min": 47.0, "delay_min": 10.5, "n": 6}, {"mins_of_day": 540, "t": "09:00", "travel_min": 43.7, "delay_min": 8.7, "n": 6}, {"mins_of_day": 555, "t": "09:15", "travel_min": 42.4, "delay_min": 5.7, "n": 3}, {"mins_of_day": 570, "t": "09:30", "travel_min": 42.2, "delay_min": 6.3, "n": 6}, {"mins_of_day": 585, "t": "09:45", "travel_min": 40.5, "delay_min": 4.8, "n": 7}, {"mins_of_day": 600, "t": "10:00", "travel_min": 39.7, "delay_min": 3.9, "n": 6}, {"mins_of_day": 615, "t": "10:15", "travel_min": 39.5, "delay_min": 3.7, "n": 3}, {"mins_of_day": 630, "t": "10:30", "travel_min": 38.8, "delay_min": 3.6, "n": 6}, {"mins_of_day": 645, "t": "10:45", "travel_min": 39.2, "delay_min": 3.4, "n": 6}, {"mins_of_day": 660, "t": "11:00", "travel_min": 39.1, "delay_min": 3.1, "n": 6}, {"mins_of_day": 675, "t": "11:15", "travel_min": 38.8, "delay_min": 3.1, "n": 3}, {"mins_of_day": 690, "t": "11:30", "travel_min": 39.3, "delay_min": 3.2, "n": 6}, {"mins_of_day": 705, "t": "11:45", "travel_min": 39.3, "delay_min": 3.3, "n": 6}], "windows": [{"from": "06:00", "to": "06:15", "from_min": 360, "to_min": 375, "travel_min": 38, "delay_min": 2, "arrival": "06:38", "later_by": null, "kind": "früh"}, {"from": "09:45", "to": "11:45", "from_min": 585, "to_min": 705, "travel_min": 39, "delay_min": 3, "arrival": "10:24", "later_by": "3:45 h", "kind": "spät"}], "avoid": {"from": "06:45", "to": "08:45", "from_min": 405, "to_min": 525, "travel_min": 56, "delay_min": 15}}, "to_home": {"label": "Sankt Augustin → Brühl", "window": {"start": "14:00", "end": "20:00", "earliest": "14:00", "target_arrival": null}, "free_flow_min": 36.0, "curve": [{"mins_of_day": 840, "t": "14:00", "travel_min": 46.4, "delay_min": 8.7, "n": 6}, {"mins_of_day": 855, "t": "14:15", "travel_min": 46.2, "delay_min": 8.6, "n": 3}, {"mins_of_day": 870, "t": "14:30", "travel_min": 47.7, "delay_min": 10.0, "n": 6}, {"mins_of_day": 885, "t": "14:45", "travel_min": 48.9, "delay_min": 11.3, "n": 6}, {"mins_of_day": 900, "t": "15:00", "travel_min": 49.8, "delay_min": 12.2, "n": 6}, {"mins_of_day": 915, "t": "15:15", "travel_min": 52.4, "delay_min": 14.3, "n": 3}, {"mins_of_day": 930, "t": "15:30", "travel_min": 52.2, "delay_min": 14.6, "n": 6}, {"mins_of_day": 945, "t": "15:45", "travel_min": 54.0, "delay_min": 15.4, "n": 6}, {"mins_of_day": 960, "t": "16:00", "travel_min": 54.3, "delay_min": 16.6, "n": 6}, {"mins_of_day": 975, "t": "16:15", "travel_min": 54.0, "delay_min": 16.0, "n": 3}, {"mins_of_day": 990, "t": "16:30", "travel_min": 55.5, "delay_min": 16.4, "n": 6}, {"mins_of_day": 1005, "t": "16:45", "travel_min": 53.1, "delay_min": 15.4, "n": 6}, {"mins_of_day": 1020, "t": "17:00", "travel_min": 52.9, "delay_min": 15.3, "n": 6}, {"mins_of_day": 1035, "t": "17:15", "travel_min": 52.0, "delay_min": 14.3, "n": 3}, {"mins_of_day": 1050, "t": "17:30", "travel_min": 50.3, "delay_min": 13.9, "n": 6}, {"mins_of_day": 1065, "t": "17:45", "travel_min": 48.0, "delay_min": 11.7, "n": 6}, {"mins_of_day": 1080, "t": "18:00", "travel_min": 47.2, "delay_min": 10.5, "n": 6}, {"mins_of_day": 1095, "t": "18:15", "travel_min": 47.0, "delay_min": 9.9, "n": 3}, {"mins_of_day": 1110, "t": "18:30", "travel_min": 44.0, "delay_min": 7.0, "n": 6}, {"mins_of_day": 1125, "t": "18:45", "travel_min": 40.9, "delay_min": 3.2, "n": 6}, {"mins_of_day": 1140, "t": "19:00", "travel_min": 39.9, "delay_min": 3.2, "n": 6}, {"mins_of_day": 1155, "t": "19:15", "travel_min": 38.9, "delay_min": 2.4, "n": 3}, {"mins_of_day": 1170, "t": "19:30", "travel_min": 38.5, "delay_min": 1.9, "n": 6}, {"mins_of_day": 1185, "t": "19:45", "travel_min": 38.2, "delay_min": 1.7, "n": 6}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 38.1, "delay_min": 1.7, "n": 3}], "windows": [{"from": "18:45", "to": "20:00", "from_min": 1125, "to_min": 1200, "travel_min": 38, "delay_min": 2, "arrival": "19:23", "later_by": null, "kind": "flex"}], "avoid": {"from": "14:00", "to": "18:15", "from_min": 840, "to_min": 1095, "travel_min": 56, "delay_min": 16}}}, "2": {"label": "Mittwoch", "to_work": {"label": "Brühl → Sankt Augustin", "window": {"start": "06:00", "end": "12:00", "earliest": "06:00", "target_arrival": null}, "free_flow_min": 30.0, "curve": [{"mins_of_day": 360, "t": "06:00", "travel_min": 37.2, "delay_min": 1.8, "n": 6}, {"mins_of_day": 375, "t": "06:15", "travel_min": 40.8, "delay_min": 4.3, "n": 3}, {"mins_of_day": 390, "t": "06:30", "travel_min": 43.7, "delay_min": 5.6, "n": 6}, {"mins_of_day": 405, "t": "06:45", "travel_min": 46.1, "delay_min": 7.8, "n": 6}, {"mins_of_day": 420, "t": "07:00", "travel_min": 47.4, "delay_min": 9.3, "n": 6}, {"mins_of_day": 435, "t": "07:15", "travel_min": 52.5, "delay_min": 14.5, "n": 3}, {"mins_of_day": 450, "t": "07:30", "travel_min": 51.3, "delay_min": 12.6, "n": 6}, {"mins_of_day": 465, "t": "07:45", "travel_min": 51.5, "delay_min": 14.0, "n": 6}, {"mins_of_day": 480, "t": "08:00", "travel_min": 50.3, "delay_min": 11.1, "n": 6}, {"mins_of_day": 495, "t": "08:15", "travel_min": 51.7, "delay_min": 12.2, "n": 3}, {"mins_of_day": 510, "t": "08:30", "travel_min": 50.1, "delay_min": 11.5, "n": 6}, {"mins_of_day": 525, "t": "08:45", "travel_min": 44.8, "delay_min": 10.5, "n": 6}, {"mins_of_day": 540, "t": "09:00", "travel_min": 43.1, "delay_min": 8.0, "n": 6}, {"mins_of_day": 555, "t": "09:15", "travel_min": 41.4, "delay_min": 5.7, "n": 3}, {"mins_of_day": 570, "t": "09:30", "travel_min": 40.4, "delay_min": 5.2, "n": 6}, {"mins_of_day": 585, "t": "09:45", "travel_min": 39.0, "delay_min": 4.7, "n": 6}, {"mins_of_day": 600, "t": "10:00", "travel_min": 38.9, "delay_min": 3.6, "n": 6}, {"mins_of_day": 615, "t": "10:15", "travel_min": 39.0, "delay_min": 3.3, "n": 3}, {"mins_of_day": 630, "t": "10:30", "travel_min": 39.1, "delay_min": 3.4, "n": 6}, {"mins_of_day": 645, "t": "10:45", "travel_min": 39.2, "delay_min": 3.5, "n": 6}, {"mins_of_day": 660, "t": "11:00", "travel_min": 39.5, "delay_min": 3.8, "n": 6}, {"mins_of_day": 675, "t": "11:15", "travel_min": 39.1, "delay_min": 3.1, "n": 3}, {"mins_of_day": 690, "t": "11:30", "travel_min": 39.5, "delay_min": 3.5, "n": 6}, {"mins_of_day": 705, "t": "11:45", "travel_min": 40.4, "delay_min": 4.2, "n": 6}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 36.4, "delay_min": 0.3, "n": 1}, {"mins_of_day": 1245, "t": "20:45", "travel_min": 36.6, "delay_min": 0.5, "n": 1}, {"mins_of_day": 1275, "t": "21:15", "travel_min": 35.9, "delay_min": 0.0, "n": 1}, {"mins_of_day": 1350, "t": "22:30", "travel_min": 31.1, "delay_min": 1.1, "n": 1}], "windows": [{"from": "06:00", "to": "06:15", "from_min": 360, "to_min": 375, "travel_min": 37, "delay_min": 2, "arrival": "06:37", "later_by": null, "kind": "früh"}, {"from": "09:30", "to": "11:45", "from_min": 570, "to_min": 705, "travel_min": 39, "delay_min": 3, "arrival": "10:09", "later_by": "3:30 h", "kind": "spät"}], "avoid": {"from": "06:45", "to": "08:45", "from_min": 405, "to_min": 525, "travel_min": 52, "delay_min": 14}}, "to_home": {"label": "Sankt Augustin → Brühl", "window": {"start": "14:00", "end": "20:00", "earliest": "14:00", "target_arrival": null}, "free_flow_min": 31.0, "curve": [{"mins_of_day": 840, "t": "14:00", "travel_min": 46.6, "delay_min": 8.9, "n": 6}, {"mins_of_day": 855, "t": "14:15", "travel_min": 47.5, "delay_min": 9.8, "n": 3}, {"mins_of_day": 870, "t": "14:30", "travel_min": 47.9, "delay_min": 10.1, "n": 6}, {"mins_of_day": 885, "t": "14:45", "travel_min": 50.1, "delay_min": 12.3, "n": 6}, {"mins_of_day": 900, "t": "15:00", "travel_min": 50.4, "delay_min": 12.7, "n": 6}, {"mins_of_day": 915, "t": "15:15", "travel_min": 51.9, "delay_min": 14.2, "n": 3}, {"mins_of_day": 930, "t": "15:30", "travel_min": 52.5, "delay_min": 14.5, "n": 6}, {"mins_of_day": 945, "t": "15:45", "travel_min": 54.9, "delay_min": 18.0, "n": 6}, {"mins_of_day": 960, "t": "16:00", "travel_min": 54.5, "delay_min": 15.4, "n": 6}, {"mins_of_day": 975, "t": "16:15", "travel_min": 54.3, "delay_min": 14.9, "n": 3}, {"mins_of_day": 990, "t": "16:30", "travel_min": 55.6, "delay_min": 16.7, "n": 6}, {"mins_of_day": 1005, "t": "16:45", "travel_min": 55.4, "delay_min": 17.4, "n": 6}, {"mins_of_day": 1020, "t": "17:00", "travel_min": 54.0, "delay_min": 16.0, "n": 6}, {"mins_of_day": 1035, "t": "17:15", "travel_min": 52.2, "delay_min": 14.5, "n": 3}, {"mins_of_day": 1050, "t": "17:30", "travel_min": 54.3, "delay_min": 16.0, "n": 7}, {"mins_of_day": 1065, "t": "17:45", "travel_min": 43.8, "delay_min": 10.0, "n": 9}, {"mins_of_day": 1080, "t": "18:00", "travel_min": 41.4, "delay_min": 10.0, "n": 6}, {"mins_of_day": 1095, "t": "18:15", "travel_min": 37.8, "delay_min": 6.1, "n": 3}, {"mins_of_day": 1110, "t": "18:30", "travel_min": 36.4, "delay_min": 5.1, "n": 6}, {"mins_of_day": 1125, "t": "18:45", "travel_min": 34.9, "delay_min": 3.5, "n": 6}, {"mins_of_day": 1140, "t": "19:00", "travel_min": 33.3, "delay_min": 2.0, "n": 6}, {"mins_of_day": 1155, "t": "19:15", "travel_min": 33.0, "delay_min": 1.7, "n": 3}, {"mins_of_day": 1170, "t": "19:30", "travel_min": 32.8, "delay_min": 1.5, "n": 6}, {"mins_of_day": 1185, "t": "19:45", "travel_min": 32.7, "delay_min": 1.4, "n": 6}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 35.4, "delay_min": 1.5, "n": 4}, {"mins_of_day": 1245, "t": "20:45", "travel_min": 37.8, "delay_min": 1.1, "n": 1}, {"mins_of_day": 1275, "t": "21:15", "travel_min": 38.1, "delay_min": 1.4, "n": 1}, {"mins_of_day": 1350, "t": "22:30", "travel_min": 32.0, "delay_min": 0.7, "n": 1}], "windows": [{"from": "18:45", "to": "20:00", "from_min": 1125, "to_min": 1200, "travel_min": 33, "delay_min": 1, "arrival": "19:18", "later_by": null, "kind": "flex"}], "avoid": {"from": "14:00", "to": "18:00", "from_min": 840, "to_min": 1080, "travel_min": 56, "delay_min": 17}}}, "3": {"label": "Donnerstag", "to_work": {"label": "Brühl → Sankt Augustin", "window": {"start": "06:00", "end": "12:00", "earliest": "06:00", "target_arrival": null}, "free_flow_min": 30.0, "curve": [{"mins_of_day": 360, "t": "06:00", "travel_min": 32.3, "delay_min": 1.8, "n": 6}, {"mins_of_day": 375, "t": "06:15", "travel_min": 33.5, "delay_min": 3.4, "n": 3}, {"mins_of_day": 390, "t": "06:30", "travel_min": 38.2, "delay_min": 7.0, "n": 6}, {"mins_of_day": 405, "t": "06:45", "travel_min": 42.3, "delay_min": 6.5, "n": 8}, {"mins_of_day": 420, "t": "07:00", "travel_min": 43.0, "delay_min": 8.9, "n": 7}, {"mins_of_day": 435, "t": "07:15", "travel_min": 46.7, "delay_min": 11.5, "n": 4}, {"mins_of_day": 450, "t": "07:30", "travel_min": 49.9, "delay_min": 12.7, "n": 7}, {"mins_of_day": 465, "t": "07:45", "travel_min": 49.8, "delay_min": 12.2, "n": 8}, {"mins_of_day": 480, "t": "08:00", "travel_min": 48.1, "delay_min": 11.3, "n": 6}, {"mins_of_day": 495, "t": "08:15", "travel_min": 47.4, "delay_min": 12.8, "n": 4}, {"mins_of_day": 510, "t": "08:30", "travel_min": 45.8, "delay_min": 10.0, "n": 6}, {"mins_of_day": 525, "t": "08:45", "travel_min": 43.7, "delay_min": 9.0, "n": 7}, {"mins_of_day": 540, "t": "09:00", "travel_min": 41.6, "delay_min": 7.4, "n": 7}, {"mins_of_day": 555, "t": "09:15", "travel_min": 40.8, "delay_min": 5.6, "n": 4}, {"mins_of_day": 570, "t": "09:30", "travel_min": 37.9, "delay_min": 5.3, "n": 8}, {"mins_of_day": 585, "t": "09:45", "travel_min": 37.4, "delay_min": 4.0, "n": 8}, {"mins_of_day": 600, "t": "10:00", "travel_min": 33.3, "delay_min": 3.0, "n": 6}, {"mins_of_day": 615, "t": "10:15", "travel_min": 32.7, "delay_min": 2.7, "n": 3}, {"mins_of_day": 630, "t": "10:30", "travel_min": 32.8, "delay_min": 2.7, "n": 6}, {"mins_of_day": 645, "t": "10:45", "travel_min": 33.0, "delay_min": 3.0, "n": 6}, {"mins_of_day": 660, "t": "11:00", "travel_min": 33.5, "delay_min": 3.1, "n": 6}, {"mins_of_day": 675, "t": "11:15", "travel_min": 33.1, "delay_min": 3.1, "n": 3}, {"mins_of_day": 690, "t": "11:30", "travel_min": 34.5, "delay_min": 3.8, "n": 6}, {"mins_of_day": 705, "t": "11:45", "travel_min": 36.2, "delay_min": 4.8, "n": 6}, {"mins_of_day": 1320, "t": "22:00", "travel_min": 36.5, "delay_min": 0.4, "n": 2}, {"mins_of_day": 1335, "t": "22:15", "travel_min": 36.2, "delay_min": 0.2, "n": 2}], "windows": [{"from": "06:00", "to": "06:15", "from_min": 360, "to_min": 375, "travel_min": 32, "delay_min": 2, "arrival": "06:32", "later_by": null, "kind": "früh"}, {"from": "10:00", "to": "11:30", "from_min": 600, "to_min": 690, "travel_min": 33, "delay_min": 3, "arrival": "10:33", "later_by": "4 h", "kind": "spät"}], "avoid": {"from": "06:45", "to": "09:15", "from_min": 405, "to_min": 555, "travel_min": 50, "delay_min": 13}}, "to_home": {"label": "Sankt Augustin → Brühl", "window": {"start": "14:00", "end": "20:00", "earliest": "14:00", "target_arrival": null}, "free_flow_min": 31.0, "curve": [{"mins_of_day": 405, "t": "06:45", "travel_min": 46.0, "delay_min": 9.2, "n": 2}, {"mins_of_day": 420, "t": "07:00", "travel_min": 48.0, "delay_min": 10.4, "n": 1}, {"mins_of_day": 435, "t": "07:15", "travel_min": 52.3, "delay_min": 14.6, "n": 1}, {"mins_of_day": 840, "t": "14:00", "travel_min": 40.6, "delay_min": 8.1, "n": 6}, {"mins_of_day": 855, "t": "14:15", "travel_min": 40.5, "delay_min": 8.1, "n": 3}, {"mins_of_day": 870, "t": "14:30", "travel_min": 41.3, "delay_min": 9.1, "n": 6}, {"mins_of_day": 885, "t": "14:45", "travel_min": 43.2, "delay_min": 10.9, "n": 6}, {"mins_of_day": 900, "t": "15:00", "travel_min": 43.6, "delay_min": 11.3, "n": 6}, {"mins_of_day": 915, "t": "15:15", "travel_min": 52.2, "delay_min": 14.5, "n": 5}, {"mins_of_day": 930, "t": "15:30", "travel_min": 47.6, "delay_min": 13.4, "n": 6}, {"mins_of_day": 945, "t": "15:45", "travel_min": 48.9, "delay_min": 14.8, "n": 6}, {"mins_of_day": 960, "t": "16:00", "travel_min": 49.3, "delay_min": 13.4, "n": 6}, {"mins_of_day": 975, "t": "16:15", "travel_min": 51.5, "delay_min": 16.2, "n": 4}, {"mins_of_day": 990, "t": "16:30", "travel_min": 48.2, "delay_min": 14.5, "n": 6}, {"mins_of_day": 1005, "t": "16:45", "travel_min": 48.3, "delay_min": 15.1, "n": 6}, {"mins_of_day": 1020, "t": "17:00", "travel_min": 47.0, "delay_min": 14.8, "n": 6}, {"mins_of_day": 1035, "t": "17:15", "travel_min": 50.0, "delay_min": 14.7, "n": 4}, {"mins_of_day": 1050, "t": "17:30", "travel_min": 46.1, "delay_min": 13.2, "n": 6}, {"mins_of_day": 1065, "t": "17:45", "travel_min": 42.5, "delay_min": 9.8, "n": 6}, {"mins_of_day": 1080, "t": "18:00", "travel_min": 41.8, "delay_min": 9.2, "n": 7}, {"mins_of_day": 1095, "t": "18:15", "travel_min": 40.1, "delay_min": 5.3, "n": 3}, {"mins_of_day": 1110, "t": "18:30", "travel_min": 37.9, "delay_min": 5.6, "n": 6}, {"mins_of_day": 1125, "t": "18:45", "travel_min": 34.3, "delay_min": 3.0, "n": 6}, {"mins_of_day": 1140, "t": "19:00", "travel_min": 37.3, "delay_min": 3.5, "n": 8}, {"mins_of_day": 1155, "t": "19:15", "travel_min": 33.9, "delay_min": 2.6, "n": 3}, {"mins_of_day": 1170, "t": "19:30", "travel_min": 33.0, "delay_min": 1.7, "n": 6}, {"mins_of_day": 1185, "t": "19:45", "travel_min": 33.0, "delay_min": 1.7, "n": 6}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 32.7, "delay_min": 1.3, "n": 3}, {"mins_of_day": 1320, "t": "22:00", "travel_min": 37.3, "delay_min": 0.6, "n": 2}, {"mins_of_day": 1335, "t": "22:15", "travel_min": 37.3, "delay_min": 0.5, "n": 2}], "windows": [{"from": "18:45", "to": "18:45", "from_min": 1125, "to_min": 1125, "travel_min": 34, "delay_min": 3, "arrival": "19:19", "later_by": null, "kind": "früh"}, {"from": "19:15", "to": "20:00", "from_min": 1155, "to_min": 1200, "travel_min": 33, "delay_min": 1, "arrival": "19:48", "later_by": "30 min", "kind": "spät"}], "avoid": {"from": "14:00", "to": "18:15", "from_min": 840, "to_min": 1095, "travel_min": 52, "delay_min": 14}}}, "4": {"label": "Freitag", "to_work": {"label": "Brühl → Sankt Augustin", "window": {"start": "06:00", "end": "12:00", "earliest": "06:00", "target_arrival": null}, "free_flow_min": 32.0, "curve": [{"mins_of_day": 360, "t": "06:00", "travel_min": 34.2, "delay_min": 1.0, "n": 8}, {"mins_of_day": 375, "t": "06:15", "travel_min": 34.9, "delay_min": 2.0, "n": 4}, {"mins_of_day": 390, "t": "06:30", "travel_min": 35.7, "delay_min": 2.4, "n": 8}, {"mins_of_day": 405, "t": "06:45", "travel_min": 36.5, "delay_min": 3.4, "n": 8}, {"mins_of_day": 420, "t": "07:00", "travel_min": 37.0, "delay_min": 4.0, "n": 8}, {"mins_of_day": 435, "t": "07:15", "travel_min": 37.6, "delay_min": 4.3, "n": 4}, {"mins_of_day": 450, "t": "07:30", "travel_min": 38.9, "delay_min": 5.8, "n": 8}, {"mins_of_day": 465, "t": "07:45", "travel_min": 39.1, "delay_min": 5.1, "n": 8}, {"mins_of_day": 480, "t": "08:00", "travel_min": 39.5, "delay_min": 6.1, "n": 8}, {"mins_of_day": 495, "t": "08:15", "travel_min": 38.4, "delay_min": 5.9, "n": 4}, {"mins_of_day": 510, "t": "08:30", "travel_min": 40.1, "delay_min": 6.4, "n": 8}, {"mins_of_day": 525, "t": "08:45", "travel_min": 37.6, "delay_min": 4.4, "n": 8}, {"mins_of_day": 540, "t": "09:00", "travel_min": 37.0, "delay_min": 3.6, "n": 8}, {"mins_of_day": 555, "t": "09:15", "travel_min": 35.8, "delay_min": 2.9, "n": 4}, {"mins_of_day": 570, "t": "09:30", "travel_min": 35.9, "delay_min": 3.0, "n": 8}, {"mins_of_day": 585, "t": "09:45", "travel_min": 35.8, "delay_min": 2.9, "n": 8}, {"mins_of_day": 600, "t": "10:00", "travel_min": 35.9, "delay_min": 3.0, "n": 8}, {"mins_of_day": 615, "t": "10:15", "travel_min": 36.9, "delay_min": 3.5, "n": 4}, {"mins_of_day": 630, "t": "10:30", "travel_min": 36.9, "delay_min": 3.6, "n": 8}, {"mins_of_day": 645, "t": "10:45", "travel_min": 36.8, "delay_min": 4.0, "n": 8}, {"mins_of_day": 660, "t": "11:00", "travel_min": 37.1, "delay_min": 4.2, "n": 8}, {"mins_of_day": 675, "t": "11:15", "travel_min": 37.6, "delay_min": 4.5, "n": 4}, {"mins_of_day": 690, "t": "11:30", "travel_min": 38.5, "delay_min": 5.2, "n": 8}, {"mins_of_day": 705, "t": "11:45", "travel_min": 38.5, "delay_min": 5.9, "n": 8}], "windows": [{"from": "06:00", "to": "07:15", "from_min": 360, "to_min": 435, "travel_min": 34, "delay_min": 1, "arrival": "06:34", "later_by": null, "kind": "früh"}, {"from": "08:45", "to": "11:15", "from_min": 525, "to_min": 675, "travel_min": 36, "delay_min": 3, "arrival": "09:21", "later_by": "2:45 h", "kind": "spät"}], "avoid": null}, "to_home": {"label": "Sankt Augustin → Brühl", "window": {"start": "14:00", "end": "20:00", "earliest": "14:00", "target_arrival": null}, "free_flow_min": 34.0, "curve": [{"mins_of_day": 840, "t": "14:00", "travel_min": 51.0, "delay_min": 12.8, "n": 8}, {"mins_of_day": 855, "t": "14:15", "travel_min": 50.0, "delay_min": 13.1, "n": 4}, {"mins_of_day": 870, "t": "14:30", "travel_min": 51.3, "delay_min": 13.1, "n": 8}, {"mins_of_day": 885, "t": "14:45", "travel_min": 51.5, "delay_min": 12.5, "n": 8}, {"mins_of_day": 900, "t": "15:00", "travel_min": 51.9, "delay_min": 13.4, "n": 8}, {"mins_of_day": 915, "t": "15:15", "travel_min": 52.4, "delay_min": 14.4, "n": 4}, {"mins_of_day": 930, "t": "15:30", "travel_min": 53.4, "delay_min": 15.4, "n": 8}, {"mins_of_day": 945, "t": "15:45", "travel_min": 51.9, "delay_min": 13.8, "n": 8}, {"mins_of_day": 960, "t": "16:00", "travel_min": 51.5, "delay_min": 13.6, "n": 8}, {"mins_of_day": 975, "t": "16:15", "travel_min": 51.1, "delay_min": 13.2, "n": 4}, {"mins_of_day": 990, "t": "16:30", "travel_min": 49.5, "delay_min": 11.4, "n": 8}, {"mins_of_day": 1005, "t": "16:45", "travel_min": 46.5, "delay_min": 10.9, "n": 8}, {"mins_of_day": 1020, "t": "17:00", "travel_min": 46.0, "delay_min": 11.0, "n": 8}, {"mins_of_day": 1035, "t": "17:15", "travel_min": 44.9, "delay_min": 10.3, "n": 4}, {"mins_of_day": 1050, "t": "17:30", "travel_min": 44.6, "delay_min": 10.3, "n": 8}, {"mins_of_day": 1065, "t": "17:45", "travel_min": 43.5, "delay_min": 9.0, "n": 8}, {"mins_of_day": 1080, "t": "18:00", "travel_min": 43.5, "delay_min": 8.3, "n": 8}, {"mins_of_day": 1095, "t": "18:15", "travel_min": 41.8, "delay_min": 7.6, "n": 4}, {"mins_of_day": 1110, "t": "18:30", "travel_min": 39.9, "delay_min": 6.0, "n": 8}, {"mins_of_day": 1125, "t": "18:45", "travel_min": 39.1, "delay_min": 5.2, "n": 8}, {"mins_of_day": 1140, "t": "19:00", "travel_min": 38.0, "delay_min": 4.1, "n": 8}, {"mins_of_day": 1155, "t": "19:15", "travel_min": 37.7, "delay_min": 3.6, "n": 4}, {"mins_of_day": 1170, "t": "19:30", "travel_min": 37.2, "delay_min": 3.1, "n": 8}, {"mins_of_day": 1185, "t": "19:45", "travel_min": 37.0, "delay_min": 2.6, "n": 8}, {"mins_of_day": 1200, "t": "20:00", "travel_min": 36.8, "delay_min": 2.4, "n": 4}], "windows": [{"from": "18:30", "to": "20:00", "from_min": 1110, "to_min": 1200, "travel_min": 37, "delay_min": 2, "arrival": "19:07", "later_by": null, "kind": "flex"}], "avoid": {"from": "14:00", "to": "17:30", "from_min": 840, "to_min": 1050, "travel_min": 53, "delay_min": 15}}}}};
+
+const $ = (id) => document.getElementById(id);
+const fmtDay = (mins) => { mins=((mins%1440)+1440)%1440; return String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); };
+const fmtHour = (mins) => { mins=((mins%1440)+1440)%1440; return String(Math.floor(mins/60))+" Uhr"; };
+let selected = "0";
+
+function renderHeader(){
+  const f = FORECAST;
+  $("route").textContent = f.route.origin + "  ⇄  " + f.route.destination;
+  const b = $("badges");
+  const gen = new Date(f.generated_at).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"});
+  if(f.is_sample){
+    b.innerHTML = `<span class="badge sample">Beispiel-Daten – noch keine echten Messungen</span>`
+      + `<span class="badge">Stand ${gen}</span>`;
+  } else {
+    const range = f.date_range ? `${f.date_range.from} – ${f.date_range.to}` : "";
+    b.innerHTML = `<span class="badge live">Live · ${f.data_points} Messungen</span>`
+      + (range?`<span class="badge">${range}</span>`:``)
+      + `<span class="badge">Stand ${gen}</span>`;
+  }
+}
+
+function statusOf(travel, free){
+  if(!free) return {cls:"", label:"–"};
+  const r = travel/free;
+  if(r < 1.15) return {cls:"good", label:"flüssig"};
+  if(r < 1.5)  return {cls:"warn", label:"dicht"};
+  return {cls:"bad", label:"Stau"};
+}
+
+function renderLive(){
+  const live = FORECAST.live;
+  const wrap = $("liveWrap");
+  if(!live || !live.directions || !Object.keys(live.directions).length){ wrap.innerHTML=""; return; }
+  let cards = "";
+  ["to_work","to_home"].forEach(d=>{
+    const dir = live.directions[d];
+    if(!dir || !dir.routes || !dir.routes.length) return;
+    const fast = dir.routes.find(r=>r.fastest) || dir.routes[0];
+    const st = statusOf(fast.travel_min, dir.free_flow_min);
+    const when = new Date(dir.updated_utc).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+    const routes = dir.routes.map(r=>`<div class="lr${r.fastest?" win":""}">`
+      + `<span class="ln">${r.name}${r.fastest?" ✓":""}</span>`
+      + `<span class="lt">${r.travel_min} min${r.length_km?` · ${r.length_km} km`:""}</span></div>`).join("");
+    const sub = fast.delay_min > 0
+      ? `+${fast.delay_min} min gegenüber freier Fahrt (${dir.free_flow_min} min)`
+      : "freie Fahrt";
+    cards += `<div class="lcard">`
+      + `<div class="lhead"><span class="ldir">${dir.label}</span>`
+      + `<span class="pill ${st.cls}">${st.label}</span></div>`
+      + `<div class="lbig">${fast.travel_min}<span>min</span></div>`
+      + `<div class="lsub">${sub} · Stand ${when} Uhr</div>`
+      + `<div class="lroutes">${routes}</div></div>`;
+  });
+  wrap.innerHTML = cards
+    ? `<h2>Aktuell — welche Route ist jetzt am schnellsten?</h2><div class="live">${cards}</div>`
+      + `<div class="lnote">Routen sind nach ihrer prägenden Strecke benannt (✓ = aktuell schnellste). „min" = aktuelle Fahrzeit inkl. Verkehr.</div>`
+    : "";
+}
+
+function renderQuality(){
+  const wrap = $("qualityWrap");
+  const q = FORECAST.quality;
+  if(FORECAST.is_sample || !q){
+    wrap.innerHTML = `<div class="qhead"><h2>Datengüte</h2>`
+      + `<span class="pill warn">Beispieldaten</span></div>`
+      + `<div class="qnote">Noch keine echten Messungen – sobald der Sammel-Job läuft, erscheinen hier `
+      + `Anzahl der Messungen, Sammeldauer, Dichte je Zeitfenster und die typische Genauigkeit.</div>`;
+    return;
+  }
+  const first = q.first_day ? q.first_day.split("-").reverse().join(".") : "–";
+  const acc = q.accuracy_min != null ? `±${q.accuracy_min} min` : "—";
+  const accNote = q.accuracy_min != null
+    ? "typische Schwankung zur gleichen Zeit"
+    : "wird berechnet, sobald sich Wochentage wiederholen";
+  const tiles = [
+    [q.measurements, "Messungen gesamt"],
+    [`${q.span_days} Tage`, `Daten seit ${first} · ${q.measure_days} Messtage`],
+    [q.samples_per_slot, "Ø Messwerte je Zeitfenster"],
+    [acc, `Genauigkeit — ${accNote}`],
+  ].map(([v, l]) => `<div class="qtile"><div class="qv">${v}</div><div class="ql">${l}</div></div>`).join("");
+  wrap.innerHTML = `<div class="qhead"><h2>Datengüte</h2>`
+    + `<span class="pill ${q.level === "belastbar" ? "good" : "warn"}">${q.level_label}</span></div>`
+    + `<div class="quality">${tiles}</div>`
+    + `<div class="qnote"><b>Reifegrad:</b> Aufbauphase → Solide Basis → Belastbare Prognose (steigt mit der Zahl der `
+    + `Messwerte je Wochentag/Zeitfenster). <b>Genauigkeit</b> ist die typische Schwankung der Fahrzeit zur gleichen `
+    + `Zeit am gleichen Wochentag – je kleiner, desto verlässlicher die Vorhersage.</div>`;
+}
+
+function renderTabs(){
+  const t = $("tabs"); t.innerHTML="";
+  const tabs = [];
+  for(let d=0; d<5; d++) tabs.push([String(d), FORECAST.weekdays[String(d)].label]);
+  if(FORECAST.average) tabs.push(["avg", "Ø Mo–Fr"]);
+  tabs.forEach(([key,label])=>{
+    const btn = document.createElement("button");
+    btn.className = "tab" + (key===selected?" active":"");
+    btn.textContent = label;
+    btn.onclick = () => { selected=key; renderDetail(); };
+    t.appendChild(btn);
+  });
+}
+
+// Gemeinsame y-Skala je Richtung: über ALLE Wochentage + Ø + eigene Fahrten,
+// damit die Tages-Diagramme exakt gleich skaliert und direkt vergleichbar sind.
+function yRangeFor(direction){
+  const collect = (leg, vals) => {
+    if(!leg || !leg.curve) return;
+    const a = toMin(leg.window.start), b = toMin(leg.window.end);
+    leg.curve.forEach(p => { if(p.mins_of_day>=a && p.mins_of_day<=b) vals.push(p.travel_min); });
+  };
+  const vals = [];
+  const wd = FORECAST.weekdays || {};
+  Object.keys(wd).forEach(k => collect(wd[k][direction], vals));
+  if(FORECAST.average) collect(FORECAST.average[direction], vals);
+  const ref = (FORECAST.average || wd[Object.keys(wd)[0]] || {})[direction];
+  if(ref){
+    const a = toMin(ref.window.start), b = toMin(ref.window.end);
+    ENTRIES.filter(e=>e.direction===direction).forEach(e=>{
+      const dm = toMin(e.departure);
+      if(dm>=a && dm<=b) vals.push(e.travel_min);
+    });
+  }
+  if(!vals.length) return null;
+  return { yMin: Math.floor(Math.min(...vals)/5)*5, yMax: Math.ceil(Math.max(...vals)/5)*5 };
+}
+
+function chart(container, leg, avgCurve, manualPts, yRange){
+  const W=440, H=240, PL=42, PR=14, PT=16, PB=44;
+  // x-Achse fest auf das Zeitfenster (morgens 06–12, abends 14–20) – ruhiger & vergleichbar
+  const xMin = toMin(leg.window.start), xMax = toMin(leg.window.end);
+  const inWin = v => v >= xMin && v <= xMax;
+  // Kurve/Durchschnitt/eigene Punkte aufs Fenster beschneiden, damit nichts über
+  // den Diagrammrand hinausläuft (z. B. Messungen außerhalb der Pendelzeiten).
+  const curve = (leg.curve || []).filter(p => inWin(p.mins_of_day));
+  const avgC  = (avgCurve || []).filter(p => inWin(p.mins_of_day));
+  const mpts  = (manualPts || []).filter(m => inWin(m.dep_min));
+  if(curve.length < 2){ $(container).innerHTML = `<div class="na">noch keine Daten</div>`; return; }
+  const ct = p => p.travel_min;   // Prognose unverändert (keine Kalibrierung aus eigenen Zeiten)
+  // Gemeinsame Skala (über alle Tage) bevorzugen; sonst lokal aus dieser Kurve.
+  let yMin, yMax;
+  if(yRange){ yMin=yRange.yMin; yMax=yRange.yMax; }
+  else {
+    const ysAll = curve.map(ct).concat(avgC.map(ct)).concat(mpts.map(m=>m.travel_min));
+    yMin=Math.floor(Math.min(...ysAll)/5)*5; yMax=Math.ceil(Math.max(...ysAll)/5)*5;
+  }
+  const X = v => PL + (v-xMin)/(xMax-xMin||1)*(W-PL-PR);
+  const Y = v => PT + (1-(v-yMin)/(yMax-yMin||1))*(H-PT-PB);
+  const rectW = (a,b) => Math.max(2, X(b)-X(a));
+
+  // --- Ebene 1: Hintergrund-Flächen (günstige / zu meidende Fenster) ---
+  let bg="";
+  (leg.windows||[]).forEach(w=>{
+    bg+=`<rect x="${X(w.from_min).toFixed(1)}" y="${PT}" width="${rectW(w.from_min,w.to_min).toFixed(1)}" `
+      + `height="${H-PT-PB}" fill="var(--accent)" opacity=".13"/>`;
+  });
+  if(leg.avoid){
+    bg+=`<rect x="${X(leg.avoid.from_min).toFixed(1)}" y="${PT}" width="${rectW(leg.avoid.from_min,leg.avoid.to_min).toFixed(1)}" `
+      + `height="${H-PT-PB}" fill="var(--warn)" opacity=".16"/>`;
+  }
+
+  // --- Ebene 2: Datenlinien (Ø gestrichelt, Wochentag durchgezogen, eigene Punkte) ---
+  let data="";
+  if(avgC.length > 1){
+    const al = avgC.map(p=>`${X(p.mins_of_day).toFixed(1)},${Y(ct(p)).toFixed(1)}`).join(" ");
+    data+=`<polyline points="${al}" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-dasharray="5 4"/>`;
+  }
+  const line = curve.map(p=>`${X(p.mins_of_day).toFixed(1)},${Y(ct(p)).toFixed(1)}`).join(" ");
+  data+=`<polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  mpts.forEach(m=>{
+    data+=`<circle cx="${X(m.dep_min).toFixed(1)}" cy="${Y(m.travel_min).toFixed(1)}" r="4.5" `
+      + `fill="var(--alt)" stroke="var(--card)" stroke-width="1.5"/>`;
+  });
+
+  // --- Ebene 3: Gitternetz + Achsenbeschriftung IM VORDERGRUND (gut ablesbar) ---
+  let grid="";
+  const steps=4;
+  for(let i=0;i<=steps;i++){
+    const val=yMin+(yMax-yMin)*i/steps, y=Y(val);
+    grid+=`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--grid)" stroke-width="1.2"/>`;
+  }
+  for(let m=Math.ceil(xMin/60)*60; m<=xMax; m+=60){
+    const x=X(m);
+    grid+=`<line x1="${x}" y1="${PT}" x2="${x}" y2="${H-PB}" stroke="var(--grid)" stroke-width="1" stroke-dasharray="3 3" opacity=".85"/>`;
+  }
+  // Beschriftungen zuletzt, damit sie über allem liegen
+  for(let i=0;i<=steps;i++){
+    const val=yMin+(yMax-yMin)*i/steps, y=Y(val);
+    grid+=`<text x="${PL-8}" y="${y+4}" text-anchor="end" font-size="13" font-weight="600" fill="var(--muted)">${Math.round(val)}</text>`;
+  }
+  grid+=`<text x="${PL-8}" y="${PT-4}" text-anchor="end" font-size="11" fill="var(--muted)">min</text>`;
+  for(let m=Math.ceil(xMin/60)*60; m<=xMax; m+=60){
+    if(Math.floor(m/60) % 2 === 0){
+      grid+=`<text x="${X(m)}" y="${H-PB+24}" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">${fmtHour(m)}</text>`;
+    }
+  }
+
+  $(container).innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Fahrzeit-Verlauf über den Tag">${bg}${data}${grid}</svg>`;
+}
+
+// ---- eigene Fahrten (im Browser gespeichert) ----
+const LS_KEY = "pendelforecast_entries_v1";
+const toMin = s => { const p = s.split(":"); return (+p[0])*60 + (+p[1]); };
+function loadEntries(){ try{ return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }catch(e){ return []; } }
+function saveEntries(a){ try{ localStorage.setItem(LS_KEY, JSON.stringify(a)); }catch(e){} }
+let ENTRIES = loadEntries();
+
+function manualPointsFor(direction){
+  return ENTRIES
+    .filter(e => e.direction===direction && (selected==="avg" || String(e.weekday)===selected))
+    .map(e => ({dep_min: toMin(e.departure), travel_min: e.travel_min}));
+}
+function localToday(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function addManualEntry(){
+  const dir = document.querySelector('input[name="mdir"]:checked').value;
+  const dateStr = localToday(), arr = $("mArr").value, travel = parseInt($("mTravel").value, 10);
+  if(!arr || !(travel > 0)){
+    $("mErr").textContent = "Bitte Ankunftszeit und Fahrzeit (Minuten) angeben."; return;
+  }
+  $("mErr").textContent = "";
+  const depMin = ((toMin(arr) - travel) % 1440 + 1440) % 1440;
+  const wd = (new Date(dateStr + "T00:00:00").getDay() + 6) % 7; // Mo=0 … So=6
+  ENTRIES.push({id: Date.now(), direction: dir, date: dateStr, weekday: wd,
+    arrival: arr, travel_min: travel, departure: fmtDay(depMin)});
+  saveEntries(ENTRIES);
+  $("mTravel").value = "";
+  if(wd <= 4) selected = String(wd);
+  renderDetail();
+}
+function deleteEntry(id){ ENTRIES = ENTRIES.filter(e => e.id!==id); saveEntries(ENTRIES); renderDetail(); }
+function renderEntries(){
+  const el = $("entryList");
+  if(!ENTRIES.length){ el.innerHTML = `<div class="na">Noch keine eigenen Fahrten erfasst.</div>`; return; }
+  const wl = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  const sorted = ENTRIES.slice().sort((a,b)=> (b.date===a.date ? b.id-a.id : (a.date<b.date?1:-1)));
+  let html = sorted.slice(0,3).map(e=>{
+    const dir = e.direction==="to_work" ? "Hin" : "Rück";
+    return `<div class="erow"><span class="ew">${wl[e.weekday]} ${e.date.split("-").reverse().join(".")}</span>`
+      + `<span class="ed ${e.direction==="to_work"?"":"eh"}">${dir}</span>`
+      + `<span>ab ${e.departure} → an ${e.arrival}</span>`
+      + `<span class="et">${e.travel_min} min</span>`
+      + `<button class="edel" onclick="deleteEntry(${e.id})" title="löschen">×</button></div>`;
+  }).join("");
+  if(ENTRIES.length > 3){
+    html += `<div class="na" style="padding-top:2px">+ ${ENTRIES.length-3} ältere (gespeichert &amp; weiter in den Diagrammen)</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ---- Abgleich: Prognose vs. eigene Fahrten (systematischer Versatz) ----
+function predictTravel(direction, weekday, depMin){
+  const wd = FORECAST.weekdays[String(weekday)];
+  let leg = wd && wd[direction];
+  let curve = (leg && leg.curve && leg.curve.length) ? leg.curve
+    : (FORECAST.average && FORECAST.average[direction] ? FORECAST.average[direction].curve : []);
+  if(!curve || !curve.length) return null;
+  let best=null, bd=1e9;
+  for(const p of curve){ const d=Math.abs(p.mins_of_day-depMin); if(d<bd){ bd=d; best=p; } }
+  return (best && bd<=45) ? best.travel_min : null;
+}
+function calibrationStats(){
+  const out = {to_work:{n:0,sum:0,mean:null}, to_home:{n:0,sum:0,mean:null}};
+  ENTRIES.forEach(e=>{
+    const pred = predictTravel(e.direction, e.weekday, toMin(e.departure));
+    if(pred==null || !out[e.direction]) return;
+    out[e.direction].n++; out[e.direction].sum += (e.travel_min - pred);
+  });
+  ["to_work","to_home"].forEach(d=>{ if(out[d].n) out[d].mean = out[d].sum/out[d].n; });
+  return out;
+}
+function renderCalibration(){
+  const el = $("calibWrap");
+  const s = calibrationStats();
+  const rows = [["to_work","Hinweg (morgens)"],["to_home","Rückweg (abends)"]].map(([d,lbl])=>{
+    const st = s[d];
+    if(!st.n) return "";
+    const m = st.mean, abs = Math.abs(m).toFixed(0);
+    let txt, cls;
+    if(Math.abs(m) < 1){ txt = "Prognose trifft gut (±0 min)"; cls="good"; }
+    else if(m < 0){ txt = `Prognose ~${abs} min zu hoch (überschätzt)`; cls="warn"; }
+    else { txt = `Prognose ~${abs} min zu niedrig (unterschätzt)`; cls="warn"; }
+    return `<div class="crow"><span class="clbl">${lbl}</span>`
+      + `<span class="pill ${cls}">${txt}</span>`
+      + `<span class="cn">${st.n} Fahrt(en)</span></div>`;
+  }).join("");
+  if(!rows){ el.innerHTML = ""; return; }
+  el.innerHTML = `<h2>Prognose-Qualität: TomTom vs. deine Fahrten</h2><div class="calib">${rows}`
+    + `<div class="qnote">Zeigt, wie gut die TomTom-Prognose zu deinen tatsächlich gefahrenen Zeiten passt `
+    + `(gleiche Zeit/Richtung). „zu hoch" = du warst schneller als vorhergesagt, „zu niedrig" = langsamer. `
+    + `<b>Reiner Qualitäts-Check</b> – diese Werte fließen NICHT in die Prognose ein und verändern sie nicht.</div></div>`;
+}
+
+function renderDetail(){
+  renderTabs();
+  const isAvg = selected==="avg";
+  const day = isAvg ? FORECAST.average : FORECAST.weekdays[selected];
+  $("mTitle").textContent = day.to_work.label + (isAvg ? " · morgens (Ø)" : " · morgens");
+  $("eTitle").textContent = day.to_home.label + (isAvg ? " · abends (Ø)" : " · abends");
+  const ffm = day.to_work.free_flow_min, ffe = day.to_home.free_flow_min;
+  $("mSub").textContent = "Fenster " + day.to_work.window.start + "–" + day.to_work.window.end
+    + (ffm?` · frei ~${ffm} min`:``);
+  $("eSub").textContent = "Fenster " + day.to_home.window.start + "–" + day.to_home.window.end
+    + (ffe?` · frei ~${ffe} min`:``);
+  const avgW = (isAvg || !FORECAST.average) ? null : FORECAST.average.to_work.curve;
+  const avgE = (isAvg || !FORECAST.average) ? null : FORECAST.average.to_home.curve;
+  // gemeinsame y-Skala je Richtung, über alle Wochentage – identische Skalierung
+  chart("mChart", day.to_work, avgW, manualPointsFor("to_work"), yRangeFor("to_work"));
+  chart("eChart", day.to_home, avgE, manualPointsFor("to_home"), yRangeFor("to_home"));
+  renderEntries();
+  renderCalibration();
+}
+
+function renderFoot(){
+  const f = FORECAST;
+  $("foot").innerHTML =
+    "Im Diagramm: <b>grün hinterlegt</b> = günstige Abfahrtsfenster (Fahrzeit nahe am Tagesminimum, ±"+Math.round(f.tolerance*100)+" %); "
+    + "<b>rot hinterlegt</b> = Stau-Spitze (meiden). Durchgezogene Linie = Prognose des gewählten Wochentags, "
+    + "<b>gestrichelt</b> = Durchschnitt aller Wochentage (Mo–Fr, eigener Reiter „Ø Mo–Fr\"), <b>● Punkte</b> = deine "
+    + "selbst erfassten Fahrten (nur zum Vergleich – sie verändern die Prognose nicht). "
+    + "Fahrzeiten sind Mediane je 15-Minuten-Fenster. "
+    + (f.is_sample
+        ? "<br><b>Hinweis:</b> Aktuell werden Beispielwerte gezeigt. Sobald der Sammel-Job läuft, ersetzen echte Messungen die Kurven automatisch."
+        : "Datenquelle: TomTom Traffic. Aktualisierung durch den Sammel-Job.");
+}
+
+renderHeader(); renderLive(); renderDetail(); renderQuality(); renderFoot();
+</script>
+</body>
+</html>
